@@ -19,13 +19,17 @@ ROJO = (255, 0, 0)
 # Fuentes
 FUENTE = pygame.font.Font(None, 36)
 TITULO_FUENTE = pygame.font.Font(None, 72)
+MULTIPLICADOR_FUENTE = pygame.font.Font(None, 64)
 
 # Cargar imágenes
-FONDO = pygame.image.load("imagenes/desierto.jpg")
+FONDO = pygame.image.load("imagenes/desierto1.png")
 FONDO = pygame.transform.scale(FONDO, (ANCHO, ALTO))
 
-AVION = pygame.image.load("imagenes/avion.png")
-AVION = pygame.transform.scale(AVION, (80, 60))
+AVION = pygame.image.load("imagenes/avion1.png")
+AVION = pygame.transform.scale(AVION, (400, 200))
+
+EXPLOSION = pygame.image.load("imagenes/explosion.png")
+EXPLOSION = pygame.transform.scale(EXPLOSION, (400, 200))
 
 # Clase para manejar el juego Aviator
 class JuegoAviator:
@@ -41,7 +45,7 @@ class JuegoAviator:
 
     def reiniciar(self):
         """Reinicia los valores del juego para una nueva ronda."""
-        self.multiplicador = 1.0
+        self.multiplicador = random.uniform(1.0, 1.5)  # Multiplicador inicial aleatorio
         self.posicion_x = 50
         self.volando = True
         self.retirar = False
@@ -52,18 +56,18 @@ class JuegoAviator:
         """Actualiza la posición y el estado del avión."""
         if self.volando:
             tiempo_actual = pygame.time.get_ticks()
-            if tiempo_actual - self.tiempo_inicio > 1000:  # Incremento más lento cada 1 segundo
+            if tiempo_actual - self.tiempo_inicio > 1000:  # Incremento cada 1 segundo
                 self.tiempo_inicio = tiempo_actual
-                incremento = 0.05  # Velocidad de multiplicador más lenta
+                incremento = random.uniform(0.02, 0.05)  # Incremento aleatorio
                 self.multiplicador += incremento
-                self.posicion_x += 2  # Movimiento horizontal del avión
 
-                # Probabilidad de que el avión se caiga
-                if random.random() < 0.01:
-                    self.volando = False
-                    self.avion_cayo = True
-                    self.multiplicador = 0  # Perdiste
+            self.posicion_x += 3  # Movimiento horizontal más lento del avión
 
+            # Probabilidad de que el avión se caiga
+            if random.random() < 0.01:
+                self.volando = False
+                self.avion_cayo = True
+                self.multiplicador = 0  # Perdiste
 
 # Función para crear un botón
 def crear_boton(texto, x, y, ancho, alto, color, color_hover):
@@ -83,7 +87,6 @@ def crear_boton(texto, x, y, ancho, alto, color, color_hover):
         return True
     return False
 
-
 def mostrar_menu():
     """Muestra el menú principal con un botón para comenzar el juego."""
     menu_activo = True
@@ -97,7 +100,7 @@ def mostrar_menu():
         VENTANA.blit(FONDO, (0, 0))
 
         # Dibujar título
-        titulo_texto = TITULO_FUENTE.render("AVIATOR", True, BLANCO)
+        titulo_texto = TITULO_FUENTE.render("AVIATOR", True, NEGRO)
         VENTANA.blit(titulo_texto, ((ANCHO - titulo_texto.get_width()) // 2, ALTO // 4))
 
         # Dibujar botón de comenzar
@@ -105,7 +108,6 @@ def mostrar_menu():
             menu_activo = False
 
         pygame.display.flip()
-
 
 def aviator_game():
     mostrar_menu()
@@ -125,6 +127,12 @@ def aviator_game():
                     input_monto = input_monto[:-1]
                 elif evento.unicode.isdigit() or (evento.unicode == "." and "." not in input_monto):
                     input_monto += evento.unicode
+                elif evento.key == pygame.K_RETURN and input_monto:
+                    if float(input_monto) <= juego.saldo:
+                        juego.apuesta = float(input_monto)
+                        juego.saldo -= float(input_monto)
+                        juego.reiniciar()
+                        input_monto = ""
 
         # Actualizar lógica del juego
         if juego.volando:
@@ -133,29 +141,32 @@ def aviator_game():
         # Dibujar fondo
         VENTANA.blit(FONDO, (0, 0))
 
-        # Mostrar saldo y multiplicador
-        texto_saldo = FUENTE.render(f"Saldo: ${juego.saldo:.2f}", True, BLANCO)
-        texto_multiplicador = FUENTE.render(f"Multiplicador: x{juego.multiplicador:.2f}", True, BLANCO)
-        VENTANA.blit(texto_saldo, (10, 10))
-        VENTANA.blit(texto_multiplicador, (10, 50))
+        # Mostrar saldo en la esquina superior derecha
+        texto_saldo = FUENTE.render(f"Saldo: ${juego.saldo:.2f}", True, NEGRO)
+        VENTANA.blit(texto_saldo, (ANCHO - texto_saldo.get_width() - 10, 10))
+
+        # Mostrar multiplicador en la parte superior centrada
+        texto_multiplicador = MULTIPLICADOR_FUENTE.render(f"x{juego.multiplicador:.2f}", True, NEGRO)
+        VENTANA.blit(texto_multiplicador, ((ANCHO - texto_multiplicador.get_width()) // 2, 20))
 
         # Campo de entrada para la apuesta
-        pygame.draw.rect(VENTANA, GRIS, (10, 100, 200, 40))
+        pygame.draw.rect(VENTANA, GRIS, (ANCHO // 2 - 100, ALTO - 170, 200, 40))
         texto_apuesta = FUENTE.render(input_monto, True, NEGRO)
-        VENTANA.blit(texto_apuesta, (15, 105))
+        VENTANA.blit(texto_apuesta, (ANCHO // 2 - texto_apuesta.get_width() // 2, ALTO - 165))
 
-        # Botón para apostar
-        if crear_boton("Apostar", 10, 160, 200, 50, VERDE, BLANCO):
+        # Botón para regresar al menú
+        if crear_boton("Menú", 10, 10, 100, 40, GRIS, BLANCO):
+            return
+
+        # Botones para apostar y retirar centrados en la parte inferior
+        if crear_boton("Apostar", ANCHO // 2 - 220, ALTO - 100, 200, 50, VERDE, BLANCO):
             if input_monto and float(input_monto) <= juego.saldo:
                 juego.apuesta = float(input_monto)
                 juego.saldo -= float(input_monto)
                 juego.reiniciar()
                 input_monto = ""
-            else:
-                print("Monto inválido o saldo insuficiente.")
 
-        # Botón para retirar
-        if crear_boton("Retirar", 220, 160, 200, 50, ROJO, BLANCO):
+        if crear_boton("Retirar", ANCHO // 2 + 20, ALTO - 100, 200, 50, ROJO, BLANCO):
             if juego.volando:
                 juego.volando = False
                 ganancias = juego.apuesta * juego.multiplicador
@@ -165,12 +176,13 @@ def aviator_game():
         # Dibujar el avión en movimiento si está volando
         if juego.volando:
             VENTANA.blit(AVION, (juego.posicion_x, ALTO // 2 - 30))
+        elif juego.avion_cayo:
+            VENTANA.blit(EXPLOSION, (juego.posicion_x, ALTO // 2 - 30))
 
         pygame.display.flip()
         reloj.tick(30)
 
     pygame.quit()
-
 
 # Ejecutar el juego
 aviator_game()
