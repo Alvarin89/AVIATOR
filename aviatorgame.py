@@ -3,6 +3,7 @@ import random
 
 # Inicializar Pygame
 pygame.init()
+pygame.mixer.init()
 
 # Configuración de la pantalla
 ANCHO, ALTO = 1280, 720
@@ -30,6 +31,14 @@ AVION = pygame.image.load("imagenes/image1.png")
 AVION = pygame.transform.scale(AVION, (550, 250))
 EXPLOSION = pygame.image.load("imagenes/image2.png")
 EXPLOSION = pygame.transform.scale(EXPLOSION, (550, 250))
+BILLETE = pygame.image.load("imagenes/billete1.png")
+BILLETE = pygame.transform.scale(BILLETE, (30, 30))
+
+# Cargar música y efectos de sonido
+pygame.mixer.music.load("sonidos/desierto.mp3")
+pygame.mixer.music.set_volume(0.3)
+efecto_explosion = pygame.mixer.Sound("sonidos/explosion.mp3")
+efecto_victoria = pygame.mixer.Sound("sonidos/victoria.mp3")
 
 # Clase para manejar el juego Aviator
 class JuegoAviator:
@@ -43,6 +52,7 @@ class JuegoAviator:
         self.avion_cayo = False
         self.tiempo_inicio = 0
         self.mensaje = ""
+        self.explosion_mostrada = False  # Controla si se muestra la explosión
 
     def reiniciar(self):
         """Reinicia los valores del juego para una nueva ronda."""
@@ -53,6 +63,7 @@ class JuegoAviator:
         self.avion_cayo = False
         self.tiempo_inicio = pygame.time.get_ticks()
         self.mensaje = ""
+        self.explosion_mostrada = False
 
     def actualizar_vuelo(self):
         """Actualiza la posición y el estado del avión."""
@@ -71,6 +82,7 @@ class JuegoAviator:
                 self.avion_cayo = True
                 self.multiplicador = 0  # Perdiste
                 self.mensaje = "¡Has perdido!"
+                efecto_explosion.play()
 
 # Función para crear un botón con esquinas curvas
 def crear_boton(texto, x, y, ancho, alto, color, color_hover):
@@ -92,6 +104,7 @@ def crear_boton(texto, x, y, ancho, alto, color, color_hover):
 
 def mostrar_menu():
     """Muestra el menú principal con botones para comenzar y salir del juego."""
+    pygame.mixer.music.play(-1)  # Reproducir música de fondo en bucle
     menu_activo = True
     while menu_activo:
         for evento in pygame.event.get():
@@ -103,7 +116,7 @@ def mostrar_menu():
         VENTANA.blit(FONDO, (0, 0))
 
         # Dibujar título (imagen)
-        VENTANA.blit(TITULO_IMAGEN, ((ANCHO - TITULO_IMAGEN.get_width()) // 2, ALTO // 5))  # Ajusta ALTO // 5 para mover
+        VENTANA.blit(TITULO_IMAGEN, ((ANCHO - TITULO_IMAGEN.get_width()) // 2, ALTO // 5))
 
         # Dibujar botón de comenzar
         if crear_boton("Comenzar", ANCHO // 2 - 220, ALTO // 2, 200, 50, VERDE, BLANCO):
@@ -116,6 +129,7 @@ def mostrar_menu():
 
         pygame.display.flip()
 
+# Bucle principal del juego
 def aviator_game():
     while True:
         mostrar_menu()
@@ -149,16 +163,17 @@ def aviator_game():
             # Dibujar fondo
             VENTANA.blit(FONDO, (0, 0))
 
-            # Mostrar saldo en la esquina superior derecha
+            # Mostrar saldo en la esquina superior derecha con imagen
             texto_saldo = FUENTE.render(f"Saldo: ${juego.saldo:.2f}", True, NEGRO)
-            VENTANA.blit(texto_saldo, (ANCHO - texto_saldo.get_width() - 10, 10))
+            VENTANA.blit(texto_saldo, (ANCHO - texto_saldo.get_width() - 50, 10))
+            VENTANA.blit(BILLETE, (ANCHO - 40, 10))
 
             # Mostrar multiplicador en la parte superior centrada
             texto_multiplicador = MULTIPLICADOR_FUENTE.render(f"x{juego.multiplicador:.2f}", True, NEGRO)
             VENTANA.blit(texto_multiplicador, ((ANCHO - texto_multiplicador.get_width()) // 2, 20))
 
-            # Campo de entrada para la apuesta
-            pygame.draw.rect(VENTANA, GRIS, (ANCHO // 2 - 100, ALTO - 170, 200, 40))
+            # Campo de entrada para la apuesta con bordes redondeados
+            pygame.draw.rect(VENTANA, GRIS, (ANCHO // 2 - 100, ALTO - 170, 200, 40), border_radius=15)
             texto_apuesta = FUENTE.render(input_monto, True, NEGRO)
             VENTANA.blit(texto_apuesta, (ANCHO // 2 - texto_apuesta.get_width() // 2, ALTO - 165))
 
@@ -180,11 +195,13 @@ def aviator_game():
                     ganancias = juego.apuesta * juego.multiplicador
                     juego.saldo += ganancias
                     juego.mensaje = f"¡Has ganado ${ganancias:.2f}!"
+                    efecto_victoria.play()
 
             if juego.volando:
                 VENTANA.blit(AVION, (juego.posicion_x, ALTO // 2 - 30))
-            elif juego.avion_cayo:
+            elif juego.avion_cayo and not juego.explosion_mostrada:
                 VENTANA.blit(EXPLOSION, (juego.posicion_x, ALTO // 2 - 30))
+                juego.explosion_mostrada = True
 
             # Mostrar mensaje en el centro si aplica
             if juego.mensaje:
